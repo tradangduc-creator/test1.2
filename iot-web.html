@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>Điều khiển ESP32 qua AWS IoT</title>
+    <style>
+      body {
+        font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif;
+        max-width: 900px;
+        margin: 24px auto;
+        padding: 0 16px;
+      }
+      button {
+        padding: 10px 14px;
+        margin: 4px;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+      .status {
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 10px;
+        min-height: 80px;
+        background: #fafafa;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>
+      Điều khiển ESP32 qua AWS IoT <small>MQTT over WebSocket + Cognito</small>
+    </h2>
+    <div>
+      <b>Region:</b> ap-southeast-1 <br />
+      <b>IoT endpoint:</b>
+      d09840952yd35x21r22e5-ats.iot.ap-southeast-1.amazonaws.com <br />
+      <b>Identity Pool ID:</b>
+      ap-southeast-1:913bd9cf-9470-4c4a-93eb-c1397e05f723
+    </div>
+    <br />
+    <button id="connectBtn">Kết nối</button>
+    <span id="status">Chưa kết nối</span>
+    <hr />
+    <div>
+      <button onclick="sendCmd('start')">Start</button>
+      <button onclick="sendCmd('stop')">Stop</button>
+      <button onclick="sendCmd('forward')">Thuận</button>
+      <button onclick="sendCmd('reverse')">Nghịch</button>
+      <button onclick="sendCmd('emergency_stop')">⛔ Dừng khẩn cấp</button>
+    </div>
+    <div class="status" id="log"></div>
+
+    <script type="module">
+      import {
+        mqtt5,
+        iot,
+      } from "https://cdn.skypack.dev/aws-iot-device-sdk-v2";
+      import { fromCognitoIdentityPool } from "https://cdn.skypack.dev/@aws-sdk/credential-provider-cognito-identity";
+
+      const region = "ap-southeast-1";
+      const iotEndpoint =
+        "d09840952yd35x21r22e5-ats.iot.ap-southeast-1.amazonaws.com";
+      const identityPoolId =
+        "ap-southeast-1:913bd9cf-9470-4c4a-93eb-c1397e05f723";
+
+      const statusEl = document.getElementById("status");
+      const logEl = document.getElementById("log");
+      const log = (t) => {
+        logEl.textContent += t + "\n";
+        logEl.scrollTop = logEl.scrollHeight;
+      };
+
+      let client;
+
+      document.getElementById("connectBtn").onclick = async () => {
+        statusEl.textContent = "Đang kết nối...";
+        try {
+          const provider = fromCognitoIdentityPool({
+            identityPoolId,
+            clientConfig: { region },
+          });
+          const config =
+            iot.AwsIotMqtt5ClientConfigBuilder.newWebsocketMqttBuilderWithSigV4Auth(
+              {
+                region,
+                credentialsProvider: { getCredentials: () => provider() },
+              },
+              { hostName: iotEndpoint }
+            )
+              .withClientId("web-" + Math.random().toString(16).slice(2))
+              .build();
+
+          client = new mqtt5.Mqtt5Client(config);
+          client.on("connectionSuccess", () => {
+            statusEl.textContent = "✅ Connected";
+            log("Đã kết nối");
+          });
+          client.on("messageReceived", (e) => {
+            const msg = new TextDecoder().decode(e.message.payload);
+            log(`← ${e.message.topicName}: ${msg}`);
+          });
+          await client.start();
+          await client.subscribe({
+            subscriptions: [
+              { qos: mqtt5.QoS.AtLeastOnce, topicFilter: "iot/esp32/state" },
+            ],
+          });
+          log("🔔 Subscribed iot/esp32/state");
+        } catch (e) {
+          statusEl.textContent = "❌ Lỗi";
+          log(e.message);
+        }
+      };
+
+      async function sendCmd(cmd) {
+        if (!client) {
+          return log("⚠️ Chưa kết nối");
+        }
+        const payload = new TextEncoder().encode(
+          JSON.stringify({ cmd, ts: Date.now() })
+        );
+        await client.publish({
+          qos: mqtt5.QoS.AtLeastOnce,
+          topicName: "iot/esp32/cmd",
+          payload,
+        });
+        log(`→ Sent ${cmd}`);
+      }
+    </script>
+  </body>
+</html>

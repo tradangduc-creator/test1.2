@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>ESP32 Control • AWS IoT (WebSocket + Cognito)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Điều khiển ESP32 • AWS IoT</h1>
+
+      <section class="card">
+        <h2>Cấu hình</h2>
+        <div class="grid">
+          <div><b>Region:</b> <code id="region">ap-southeast-1</code></div>
+          <div>
+            <b>IoT endpoint:</b>
+            <code id="endpoint"
+              >d09840952yd35x21r22e5-ats.iot.ap-southeast-1.amazonaws.com</code
+            >
+          </div>
+          <div class="full">
+            <b>Identity Pool ID:</b>
+            <code>ap-southeast-1:913bd9cf-9470-4c4a-93eb-c1397e05f723</code>
+          </div>
+        </div>
+        <button id="btnConnect">Kết nối</button>
+        <span id="connState" class="pill">Chưa kết nối</span>
+      </section>
+
+      <section class="card">
+        <h2>Điều khiển</h2>
+        <div class="row">
+          <button data-cmd="start">Start</button>
+          <button data-cmd="stop">Stop</button>
+          <button data-cmd="forward">Thuận</button>
+          <button data-cmd="reverse">Nghịch</button>
+          <button data-cmd="emergency_stop" class="danger">
+            ⛔ Dừng khẩn cấp
+          </button>
+          <button data-cmd="reset" class="ghost">Reset</button>
+        </div>
+        <label class="row">
+          <span>Đặt tần số (Hz):</span>
+          <input
+            id="freq"
+            type="number"
+            min="0"
+            max="400"
+            step="1"
+            value="30"
+          />
+          <button id="btnSetFreq">Gửi</button>
+        </label>
+      </section>
+
+      <section class="card">
+        <h2>Log</h2>
+        <pre id="log" class="log"></pre>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
